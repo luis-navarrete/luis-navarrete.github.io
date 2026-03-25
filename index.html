@@ -688,6 +688,8 @@ function renderHistory() {
 
   if (data.length === 0) {
     container.innerHTML = "<p>Hoy será un gran día, poki, te amo.</p>";
+  if (history.length === 0) {
+    container.innerHTML = "<p>No hay ventas aún</p>";
     return;
   }
 
@@ -707,6 +709,7 @@ function renderHistory() {
       <div class="history-header">
         <button class="delete-btn" onclick="deleteSale(${sale.id})">🗑️</button>
       </div>
+      <button onclick="deleteSale(${sale.id})">🗑️ Borrar</button>
     `;
 
     container.appendChild(div);
