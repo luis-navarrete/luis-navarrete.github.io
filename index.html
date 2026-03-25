@@ -16,6 +16,17 @@ body {
   touch-action: manipulation;
 }
 
+.page {
+  height: 100%;
+  overflow: hidden;
+}
+
+#inventoryPage,
+#historyPage {
+  overflow-y: auto;
+  height: 100%;
+}
+
 .menu-btn {
   position: absolute;
   left: 10px;
@@ -88,6 +99,7 @@ body {
 .container {
   display: flex;
   height: 100vh;
+  height: 100dvh;
 }
 
 /* PRODUCTOS */
@@ -710,7 +722,7 @@ function renderHistory() {
   const data = JSON.parse(localStorage.getItem("history")) || [];
 
   if (data.length === 0) {
-    container.innerHTML = "<p>No hay ventas aún</p>";
+    container.innerHTML = "<p>Hoy será un gran día, poki, te amo.</p>";
     return;
   }
 
@@ -725,7 +737,6 @@ function renderHistory() {
       <div>${itemsHTML}</div>
       <div class="inv-qty">Total: $${sale.total}</div>
       <div class="history-header">
-        <div class="inv-name">${sale.date}</div>
         <button class="delete-btn" onclick="deleteSale(${sale.id})">🗑️</button>
       </div>
     `;
