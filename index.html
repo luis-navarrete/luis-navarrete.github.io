@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Postre Mío</title>
+
+<style>
+
+.menu-btn {
+  position: absolute;
+  left: 10px;
+  top: 15px;
+
+  font-size: 24px;
+  background: none;
+  border: none;
+
+  color: white;
+  z-index: 10000;
+}
+
+.side-menu {
+  position: fixed;
+  top: 0;
+  left: -250px; /* oculto */
+  width: 250px;
+  height: 100%;
+
+  background: white;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+
+  transition: left 0.3s ease;
+  z-index: 3000;
+}
+
+.side-menu.open {
+  left: 0;
+}
+
+.menu-content {
+  padding: 20px;
+}
+
+.menu-content button {
+  display: block;
+  width: 100%;
+  margin: 10px 0;
+  padding: 10px;
+
+  border: none;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  width: 100%;
+  background: #7ED0D2;
+  backdrop-filter: blur(10px);
+  padding: 10px;
+  text-align: center;
+}
+
+.header img {
+  max-height: 80px;
+  object-fit: contain;
+}
+
+body {
+  font-family: -apple-system, sans-serif;
+  margin: 0;
+  background: #f4f4f4;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+}
+
+/* PRODUCTOS */
+.products {
+  width: 60%;
+  padding: 10px;
+  overflow-y: scroll;
+}
+
+.category {
+  margin-bottom: 15px;
+}
+
+.category h2 {
+  margin: 10px 5px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.product {
+  background: white;
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.product img {
+  width: 100%;
+  border-radius: 10px;
+  height: 120px;
+  object-fit: cover;
+}
+
+.stock {
+  font-size: 10px;
+  color: #888;
+}
+
+/* CANASTA */
+.cart {
+  width: 32%;
+  background: #fff;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cart-items {
+  flex: 1;
+  overflow-y: auto;
+  flex: none;
+  max-height: 300px;
+}
+
+.item {
+  display: block;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.cart-item-name {
+  font-weight: 600;
+}
+
+.cart-item-price {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 5px;
+}
+
+.cart-item-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.cart-item-controls button {
+  flex: 1;
+  padding: 8px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  background: #f5f5f5;
+}
+
+.cart-item-controls button:active {
+  background: #ddd;
+}
+
+.total {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+button {
+  padding: 15px;
+  margin-top: 10px;
+  border: none;
+  font-size: 16px;
+  border-radius: 10px;
+}
+
+.pay {
+  background: black;
+  color: white;
+}
+
+.clear {
+  background: #ddd;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  background: rgba(0,0,0,0.4);
+
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+  width: 300px;
+  text-align: center;
+}
+
+.modal input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  font-size: 16px;
+}
+
+#inventoryList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  padding: 15px;
+}
+
+.inventory-card {
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.inv-name {
+  font-weight: 600;
+}
+
+.inv-qty {
+  font-size: 14px;
+  color: #555;
+}
+
+.inv-controls {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.inv-controls button {
+  flex: 1;
+  margin: 0 3px;
+  padding: 8px;
+
+  border: none;
+  border-radius: 8px;
+  background: #f5f5f5;
+}
+
+.inventory-card.updated {
+  border: 2px solid #4caf50;
+  background: #e8f5e9;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <button class="menu-btn" onclick="toggleMenu()">☰</button>
+  <img src="logo.jpeg">
+</div>
+
+
+<!-- 🟢 PÁGINA PRINCIPAL -->
+<div id="posPage" class="page">
+
+  <div class="container">
+
+    <div class="products" id="products"></div>
+
+    <div class="cart">
+      <div id="sales"></div>
+      <h2>🛒 Orden</h2>
+      <div class="cart-items" id="cart"></div>
+      <div class="total">Total: $<span id="total">0</span></div>
+
+      <button class="pay" onclick="pay()">Cobrar</button>
+      <button class="clear" onclick="clearCart()">Limpiar</button>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div id="paymentModal" class="modal">
+  <div class="modal-content">
+    <h2>Pagar</h2>
+    <p>Total: $<span id="modalTotal"></span></p>
+    <input type="number" id="modalCash" placeholder="Pago con..." />
+    <p id="modalChange"></p>
+
+    <button onclick="finalizeSale()">Finalizar</button>
+    <button onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- INVENTARIO -->
+<div id="inventoryPage" class="page" style="display:none;">
+  <h2>Inventario</h2>
+  <div id="inventoryList"></div>
+</div>
+
+<!-- HISTORIAL -->
+<div id="historyPage" class="page" style="display:none;">
+  <h2>Historial</h2>
+</div>
+
+<!-- MENÚ -->
+<div id="sideMenu" class="side-menu">
+  <div class="menu-content">
+    <h3>Menú</h3>
+    <button onclick="showPage('pos')">Caja</button>
+    <button onclick="showPage('inventory')">Inventario</button>
+    <button onclick="showPage('history')">Historial</button>
+  </div>
+</div>
+
+
+
+<script>
+
+let inventory = JSON.parse(localStorage.getItem("inventory")) || {
+  "M&Ms": 10,
+  "Lotus": 10,
+  "Kinder Bueno": 10,
+  "Red Velvet": 10,
+  "Oreo": 10,
+  "Lucky Charms": 10,
+  "Conejito Turín": 10,
+  "Crookies": 10,
+  "Roles de canela": 10,
+  "Carlota de limón": 10
+};
+
+let originalInventory = JSON.parse(JSON.stringify(inventory));
+let updatedItems = new Set();
+
+function saveInventory() {
+  localStorage.setItem("inventory", JSON.stringify(inventory));
+}
+
+const menu = [
+  {
+    category: "🍪 Galletas",
+    items: [
+      { name: "M&Ms", price: 40, img: "mms.jpg" },
+      { name: "Lotus", price: 40, img: "lotus.jpg" },
+      { name: "Kinder Bueno", price: 40, img: "kinder.jpg" },
+      { name: "Red Velvet", price: 40, img: "redvelvet.jpg" },
+      { name: "Oreo", price: 40, img: "oreo.jpg" },
+      { name: "Lucky Charms", price: 40, img: "lucky.jpg" },
+      { name: "Conejito Turín", price: 40, img: "turin.jpg" }
+    ]
+  },
+  {
+    category: "✨ Especiales",
+    items: [
+      { name: "Crookie", price: 60, img: "crookie.jpg" },
+      { name: "Rol de canela", price: 60, img: "rol.jpg" }
+    ]
+  },
+  {
+    category: "🍰 Postres",
+    items: [
+      { name: "Carlota de limón", price: 25, img: "carlota.jpg" }
+    ]
+  }
+];
+
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+// Render productos
+function renderProducts() {
+  const container = document.getElementById("products");
+  container.innerHTML = "";
+
+  menu.forEach(cat => {
+    const section = document.createElement("div");
+    section.className = "category";
+
+    section.innerHTML = `<h2>${cat.category}</h2>`;
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    cat.items.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "product";
+      div.innerHTML = `
+        <img src="${item.img}">
+        <h3>${item.name}</h3>
+        <p>$${item.price}</p>
+        <div>Stock: ${inventory[item.name]}</div>
+      `;
+      div.onclick = () => addToCart(item);
+      grid.appendChild(div);
+    });
+
+    section.appendChild(grid);
+    container.appendChild(section);
+  });
+}
+
+// Carrito
+function addToCart(item) {
+  if (inventory[item.name] > 0) {
+    cart.push(item);
+  } else {
+    alert("Sin stock");
+  }
+  renderCart();
+}
+
+function renderCart() {
+  const container = document.getElementById("cart");
+  container.innerHTML = "";
+  let total = 0;
+
+  const grouped = {};
+
+  cart.forEach(item => {
+    if (!grouped[item.name]) {
+      grouped[item.name] = { ...item, qty: 0 };
+    }
+    grouped[item.name].qty++;
+  });
+
+  Object.values(grouped).forEach(item => {
+    total += item.price * item.qty;
+
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div class="cart-item-name">
+        ${item.name}
+      </div>
+
+      <div class="cart-item-price">
+        $${item.price} x ${item.qty}
+      </div>
+
+      <div class="cart-item-controls">
+        <button onclick="changeQty('${item.name}', -1)">−</button>
+        <button onclick="changeQty('${item.name}', 1)">+</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+
+  document.getElementById("total").innerText = total;
+  localStorage.setItem("cart", JSON.stringify(cart));
+}
+
+function changeQty(name, delta) {
+  const currentQty = cart.filter(i => i.name === name).length;
+
+  if (delta > 0) {
+    if (currentQty < inventory[name]) {
+      const item = menu.flatMap(c => c.items).find(i => i.name === name);
+      cart.push(item);
+    } else {
+      alert("No hay más stock disponible");
+    }
+  } else {
+    const index = cart.findIndex(i => i.name === name);
+    if (index > -1) cart.splice(index, 1);
+  }
+
+  renderCart();
+}
+
+function removeItem(i) {
+  cart.splice(i, 1);
+  renderCart();
+}
+
+function clearCart() {
+  cart = [];
+  renderCart();
+}
+
+function pay() {
+  const total = document.getElementById("total").innerText;
+
+  document.getElementById("modalTotal").innerText = total;
+  document.getElementById("modalCash").value = "";
+  document.getElementById("modalChange").innerText = "";
+
+  document.getElementById("paymentModal").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("paymentModal").style.display = "none";
+}
+
+function calculateModalChange() {
+  const total = parseFloat(document.getElementById("modalTotal").innerText);
+  const cash = parseFloat(document.getElementById("modalCash").value);
+
+  if (!isNaN(cash)) {
+    const change = cash - total;
+
+    document.getElementById("modalChange").innerText =
+      change >= 0
+        ? "Cambio: $" + change.toFixed(2)
+        : "Falta: $" + Math.abs(change).toFixed(2);
+  }
+}
+
+function saveSale(amount) {
+  const today = new Date().toLocaleDateString();
+  let sales = JSON.parse(localStorage.getItem("sales")) || {};
+
+  if (!sales[today]) sales[today] = 0;
+
+  sales[today] += parseFloat(amount);
+
+  localStorage.setItem("sales", JSON.stringify(sales));
+
+  renderSales();
+}
+
+function renderSales() {
+  const today = new Date().toLocaleDateString();
+  let sales = JSON.parse(localStorage.getItem("sales")) || {};
+
+  const total = sales[today] || 0;
+
+  document.getElementById("sales").innerText =
+    "Ventas del día: $" + total;
+}
+
+function finalizeSale() {
+  const total = document.getElementById("modalTotal").innerText;
+  const date = new Date().toLocaleString();
+
+  let ticket = "🧾 Postre Mío\n";
+  ticket += "Fecha: " + date + "\n\n";
+
+  cart.forEach(item => {
+    ticket += item.name + " - $" + item.price + "\n";
+  });
+
+  ticket += "\nTotal: $" + total;
+
+  alert(ticket);
+
+  saveSale(total);
+
+  closeModal();
+
+  cart.forEach(item => {
+    if (inventory[item.name] > 0) {
+      inventory[item.name]--;
+    }
+  });
+
+  saveInventory();
+
+  clearCart();
+}
+
+function toggleMenu() {
+  const menu = document.getElementById("sideMenu");
+  menu.classList.toggle("open");
+}
+
+document.addEventListener("click", function(e) {
+  const menu = document.getElementById("sideMenu");
+  const btn = document.querySelector(".menu-btn");
+
+  if (!menu || !btn) return;
+
+  if (!menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.classList.remove("open");
+  }
+});
+
+function showPage(page) {
+  document.getElementById("posPage").style.display = "none";
+  document.getElementById("inventoryPage").style.display = "none";
+  document.getElementById("historyPage").style.display = "none";
+
+  if (page === "pos") {
+    document.getElementById("posPage").style.display = "block";
+  }
+
+  if (page === "inventory") {
+    document.getElementById("inventoryPage").style.display = "block";
+
+    originalInventory = JSON.parse(JSON.stringify(inventory));
+    updatedItems.clear();
+
+    renderInventory();
+  }
+
+  if (page === "history") {
+    document.getElementById("historyPage").style.display = "block";
+  }
+
+  if (page !== "inventory") {
+    updatedItems.clear();
+  }
+
+  toggleMenu(); // cerrar menú al seleccionar
+}
+
+function renderInventory() {
+  const container = document.getElementById("inventoryList");
+  container.innerHTML = "";
+
+  Object.keys(inventory).forEach(name => {
+    const qty = inventory[name];
+
+    const div = document.createElement("div");
+    div.className = "inventory-card " + (updatedItems.has(name) ? "updated" : "");
+
+    div.innerHTML = `
+      <div class="inv-name">${name}</div>
+      <div class="inv-qty">Stock: ${qty}</div>
+
+      <div class="inv-controls">
+        <button onclick="updateStock('${name}', -1)">−</button>
+        <button onclick="updateStock('${name}', 1)">+</button>
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+function updateStock(name, delta) {
+  inventory[name] += delta;
+
+  if (inventory[name] < 0) inventory[name] = 0;
+
+  if (inventory[name] !== originalInventory[name]) {
+    updatedItems.add(name);
+  } else {
+    updatedItems.delete(name);
+  }
+
+  saveInventory();
+  renderInventory();
+}
+
+
+renderSales();
+renderProducts();
+renderCart();
+</script>
+
+</body>
+</html>
