@@ -2,10 +2,19 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Postre Mío</title>
 
 <style>
+
+html, body {
+  height: 100%;
+  overflow: hidden; /* 🚫 NO scroll global */
+}
+
+body {
+  touch-action: manipulation;
+}
 
 .menu-btn {
   position: absolute;
@@ -291,6 +300,24 @@ button {
   background: #ffebee;
 }
 
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.delete-btn:hover {
+  opacity: 1;
+}
+
 </style>
 </head>
 
@@ -370,7 +397,7 @@ let inventory = JSON.parse(localStorage.getItem("inventory")) || {
   "Lucky Charms": 10,
   "Conejito Turín": 10,
   "Crookies": 10,
-  "Rol de canela": 10,
+  "Roles de canela": 10,
   "Carlota de limón": 10
 };
 
@@ -566,21 +593,20 @@ function finalizeSale() {
     total: total
   };
 
+  // ✅ guardar historial
   history.push(sale);
-  saveHistory();
+  localStorage.setItem("history", JSON.stringify(history));
 
-  // actualizar inventario
+  // ✅ actualizar inventario
   cart.forEach(item => {
-    if (inventory[item.name] > 0) {
-      inventory[item.name]--;
-    }
+    inventory[item.name] = (inventory[item.name] || 0) - 1;
   });
 
-  saveInventory();
+  localStorage.setItem("inventory", JSON.stringify(inventory));
 
+  // 🔥 FORZAR actualización VISUAL REAL
   renderProducts();
-
-  alert("Venta registrada ✅");
+  renderCart();
 
   closeModal();
   clearCart();
@@ -674,29 +700,34 @@ function updateStock(name, delta) {
 function renderHistory() {
   const container = document.getElementById("historyList");
 
-  if (!container) return; // 🔒 evita crash
+  if (!container) {
+    console.log("❌ historyList no existe");
+    return;
+  }
 
   container.innerHTML = "";
 
-  if (history.length === 0) {
+  const data = JSON.parse(localStorage.getItem("history")) || [];
+
+  if (data.length === 0) {
     container.innerHTML = "<p>No hay ventas aún</p>";
     return;
   }
 
-  history.slice().reverse().forEach(sale => {
+  data.reverse().forEach(sale => {
     const div = document.createElement("div");
     div.className = "inventory-card";
 
-    let itemsHTML = "";
-    sale.items.forEach(i => {
-      itemsHTML += `<div>${i.name} - $${i.price}</div>`;
-    });
+    let itemsHTML = sale.items.map(i => `${i.name} - $${i.price}`).join("<br>");
 
     div.innerHTML = `
       <div class="inv-name">${sale.date}</div>
       <div>${itemsHTML}</div>
       <div class="inv-qty">Total: $${sale.total}</div>
-      <button onclick="deleteSale(${sale.id})">🗑️ Borrar</button>
+      <div class="history-header">
+        <div class="inv-name">${sale.date}</div>
+        <button class="delete-btn" onclick="deleteSale(${sale.id})">🗑️</button>
+      </div>
     `;
 
     container.appendChild(div);
@@ -707,23 +738,24 @@ function deleteSale(id) {
   const confirmDelete = confirm("¿Borrar esta venta?");
   if (!confirmDelete) return;
 
-  const index = history.findIndex(s => s.id === id);
+  let data = JSON.parse(localStorage.getItem("history")) || [];
+  const index = data.findIndex(s => s.id === id);
+
   if (index === -1) return;
 
-  const sale = history[index];
+  const sale = data[index];
 
-  // recuperar inventario
+  // 🔥 devolver stock
   sale.items.forEach(item => {
-    inventory[item.name]++;
+    inventory[item.name] = (inventory[item.name] || 0) + 1;
   });
 
-  history.splice(index, 1);
+  data.splice(index, 1);
 
-  saveHistory();
-  saveInventory();
+  localStorage.setItem("history", JSON.stringify(data));
+  localStorage.setItem("inventory", JSON.stringify(inventory));
 
   renderProducts();
-
   renderHistory();
 }
 
