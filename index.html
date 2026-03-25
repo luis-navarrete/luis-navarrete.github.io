@@ -2,34 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Postre Mío</title>
 
 <style>
-
-html, body {
-  height: 100%;
-  overflow: hidden; /* 🚫 NO scroll global */
-  position: fixed;
-  width: 100%;
-}
-
-body {
-  touch-action: manipulation;
-}
-
-.page {
-  height: 100%;
-  overflow: hidden;
-}
-
-#inventoryPage,
-#historyPage {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  height: 100%;
-}
 
 .menu-btn {
   position: absolute;
@@ -320,24 +296,6 @@ button {
   background: #ffebee;
 }
 
-.history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.delete-btn {
-  background: transparent;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  opacity: 0.6;
-}
-
-.delete-btn:hover {
-  opacity: 1;
-}
-
 </style>
 </head>
 
@@ -417,7 +375,7 @@ let inventory = JSON.parse(localStorage.getItem("inventory")) || {
   "Lucky Charms": 10,
   "Conejito Turín": 10,
   "Crookies": 10,
-  "Roles de canela": 10,
+  "Rol de canela": 10,
   "Carlota de limón": 10
 };
 
@@ -613,20 +571,21 @@ function finalizeSale() {
     total: total
   };
 
-  // ✅ guardar historial
   history.push(sale);
-  localStorage.setItem("history", JSON.stringify(history));
+  saveHistory();
 
-  // ✅ actualizar inventario
+  // actualizar inventario
   cart.forEach(item => {
-    inventory[item.name] = (inventory[item.name] || 0) - 1;
+    if (inventory[item.name] > 0) {
+      inventory[item.name]--;
+    }
   });
 
-  localStorage.setItem("inventory", JSON.stringify(inventory));
+  saveInventory();
 
-  // 🔥 FORZAR actualización VISUAL REAL
   renderProducts();
-  renderCart();
+
+  alert("Venta registrada ✅");
 
   closeModal();
   clearCart();
@@ -721,10 +680,7 @@ function updateStock(name, delta) {
 function renderHistory() {
   const container = document.getElementById("historyList");
 
-  if (!container) {
-    console.log("❌ historyList no existe");
-    return;
-  }
+  if (!container) return; // 🔒 evita crash
 
   container.innerHTML = "";
 
@@ -735,11 +691,14 @@ function renderHistory() {
     return;
   }
 
-  data.reverse().forEach(sale => {
+  history.slice().reverse().forEach(sale => {
     const div = document.createElement("div");
     div.className = "inventory-card";
 
-    let itemsHTML = sale.items.map(i => `${i.name} - $${i.price}`).join("<br>");
+    let itemsHTML = "";
+    sale.items.forEach(i => {
+      itemsHTML += `<div>${i.name} - $${i.price}</div>`;
+    });
 
     div.innerHTML = `
       <div class="inv-name">${sale.date}</div>
@@ -758,24 +717,23 @@ function deleteSale(id) {
   const confirmDelete = confirm("¿Borrar esta venta?");
   if (!confirmDelete) return;
 
-  let data = JSON.parse(localStorage.getItem("history")) || [];
-  const index = data.findIndex(s => s.id === id);
-
+  const index = history.findIndex(s => s.id === id);
   if (index === -1) return;
 
-  const sale = data[index];
+  const sale = history[index];
 
-  // 🔥 devolver stock
+  // recuperar inventario
   sale.items.forEach(item => {
-    inventory[item.name] = (inventory[item.name] || 0) + 1;
+    inventory[item.name]++;
   });
 
-  data.splice(index, 1);
+  history.splice(index, 1);
 
-  localStorage.setItem("history", JSON.stringify(data));
-  localStorage.setItem("inventory", JSON.stringify(inventory));
+  saveHistory();
+  saveInventory();
 
   renderProducts();
+
   renderHistory();
 }
 
