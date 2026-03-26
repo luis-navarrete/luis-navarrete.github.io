@@ -213,6 +213,11 @@ button {
   color: white;
 }
 
+.pay:disabled {
+  background: #999;
+  opacity: 0.8;
+}
+
 .clear {
   background: #ddd;
 }
@@ -382,6 +387,25 @@ button {
   text-align: right;
 }
 
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: black;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 8px;
+  opacity: 0;
+  transition: all 0.3s ease;
+  z-index: 9999;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 </style>
 </head>
 
@@ -405,7 +429,7 @@ button {
       <div class="cart-items" id="cart"></div>
       <div class="total">Total: $<span id="total">0</span></div>
 
-      <button class="pay" onclick="openPaymentOptions();">Cobrar</button>
+      <button id="payBtn" class="pay" onclick="openPaymentOptions();">Cobrar</button>
       <button class="clear" onclick="clearCart()">Limpiar</button>
     </div>
 
@@ -545,6 +569,9 @@ function addToCart(item) {
 }
 
 function renderCart() {
+  const payBtn = document.getElementById("payBtn");
+  payBtn.disabled = cart.length === 0;
+  
   const container = document.getElementById("cart");
   container.innerHTML = "";
   let total = 0;
@@ -680,7 +707,7 @@ function showFinalStep(total, method, change) {
 
     ${method === "cash" ? `<p>Cambio: $${change}</p>` : ""}
 
-    <button onclick="alert('Ticket próximamente')">
+    <button onclick="printLastSale(${total})">
       Obtener ticket
     </button>
 
@@ -712,15 +739,91 @@ function saveSale(total) {
 }
 
 function finalizeSale() {
-  saveSale(total);
+  const sale = saveSale(total);
 
   closeModal();
+  showToast("Venta registrada ✅");
 
   renderProducts();
-
   clearCart();
-
   renderHistory();
+}
+
+function printTicket(sale) {
+  const win = window.open("", "_blank");
+
+  const itemsHTML = sale.items.map(i => `
+    <div style="display:flex; justify-content:space-between;">
+      <span>${i.name}</span>
+      <span>$${i.price}</span>
+    </div>
+  `).join("");
+
+  win.document.write(`
+    <html>
+    <head>
+      <title>Ticket</title>
+      <style>
+        body {
+          font-family: monospace;
+          padding: 20px;
+          width: 300px;
+        }
+        .center {
+          text-align: center;
+        }
+        img {
+          max-width: 120px;
+          margin-bottom: 10px;
+        }
+        hr {
+          border: none;
+          border-top: 1px dashed black;
+          margin: 10px 0;
+        }
+      </style>
+    </head>
+    <body>
+
+      <div class="center">
+        <img src="logo.jpeg" />
+        <h3>Postre Mío</h3>
+        <p>${sale.date}</p>
+      </div>
+
+      <hr/>
+
+      ${itemsHTML}
+
+      <hr/>
+
+      <h3>Total: $${sale.total}</h3>
+
+      <p class="center">¡Gracias por tu compra!</p>
+
+      <script>
+        window.onload = () => {
+          window.print();
+        };
+      <\/script>
+
+    </body>
+    </html>
+  `);
+
+  win.document.close();
+}
+
+function printLastSale(total) {
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+
+  const sale = {
+    date: new Date().toLocaleString(),
+    items: [...cart],
+    total: total
+  };
+
+  printTicket(sale);
 }
 
 function toggleMenu() {
@@ -888,12 +991,24 @@ function deleteSale(index) {
 
   if (!confirm("¿Borrar esta transacción?")) return;
 
-  data.splice(index, 1);
+  const sale = data[index];
 
+  // 🟢 DEVOLVER INVENTARIO
+  (sale.items || []).forEach(item => {
+    if (!inventory[item.name]) {
+      inventory[item.name] = 0;
+    }
+    inventory[item.name]++;
+  });
+
+  saveInventory();
+
+  // eliminar venta
+  data.splice(index, 1);
   localStorage.setItem("history", JSON.stringify(data));
 
   renderProducts();
-
+  renderInventory();
   renderHistory();
 }
 
@@ -913,9 +1028,26 @@ function groupItems(items) {
   return Object.entries(grouped);
 }
 
+function showToast(msg) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = msg;
+
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add("show");
+  }, 10);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 2500);
+}
+
 
 renderProducts();
 renderCart();
+
 </script>
 
 </body>
