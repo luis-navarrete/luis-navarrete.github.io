@@ -455,6 +455,9 @@ button {
   <div class="page-content">
     <h2>Historial</h2>
     <div id="historyList"></div>
+    <div style="text-align: center;">
+      <button id="cutBtn" onclick="generateCut() ">Corte</button>
+    </div>
   </div>
 </div>
 
@@ -468,7 +471,11 @@ button {
   </div>
 </div>
 
+<div id="ticket-container" style="position: fixed; left: -9999px; top: 0;"></div>
 
+
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
 
@@ -503,13 +510,13 @@ const menu = [
   {
     category: "🍪 Galletas",
     items: [
-      { name: "M&Ms", price: 40.00, img: "mms.jpg" },
+      { name: "M&Ms", price: 45.00, img: "mms.jpg" },
       { name: "Lotus", price: 40.00, img: "lotus.jpg" },
       { name: "Kinder Bueno", price: 40.00, img: "kinder.jpg" },
       { name: "Red Velvet", price: 40.00, img: "redvelvet.jpg" },
       { name: "Oreo", price: 40.00, img: "oreo.jpg" },
       { name: "Lucky Charms", price: 40.00, img: "lucky.jpg" },
-      { name: "Conejito Turín", price: 40.00, img: "turin.jpg" }
+      { name: "Conejito Turín", price: 45.00, img: "turin.jpg" }
     ]
   },
   {
@@ -523,7 +530,7 @@ const menu = [
   {
     category: "🍰 Postres",
     items: [
-      { name: "Carlota de limón", price: 25.00, img: "carlota.jpg" }
+      { name: "Carlota de limón", price: 30.00, img: "carlota.jpg" }
     ]
   }
 ];
@@ -680,7 +687,7 @@ function handleCash(total) {
     />
 
     <button id="continueBtn" disabled>Continuar</button>
-    <button onclick="openPaymentOptions(${total})">Cancelar</button>
+    <button onclick="openPaymentOptions(${total})">Regresar</button>
   `);
 
   const input = document.getElementById("cashInput");
@@ -726,13 +733,10 @@ function showFinalStep(total, method, change) {
 
     ${method === "cash" ? `<p>Cambio: $${change}</p>` : ""}
 
-    <button onclick="generateTicket()">
-      Obtener ticket
-    </button>
-
     <button onclick="finalizeSale()">
       Finalizar
     </button>
+    <button onclick="openPaymentOptions(${total})">Regresar</button>
   `);
 }
 
@@ -758,7 +762,24 @@ function saveSale(total) {
 }
 
 function finalizeSale() {
-  const sale = saveSale(total);
+  if (!currentSale) {
+    alert("Error en la venta");
+    return;
+  }
+
+  // guardar en history
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+  history.push(currentSale);
+  localStorage.setItem("history", JSON.stringify(history));
+
+  // descontar inventario
+  currentSale.items.forEach(item => {
+    if (inventory[item.name] > 0) {
+      inventory[item.name]--;
+    }
+  });
+
+  saveInventory();
 
   closeModal();
   showToast("Venta registrada ✅");
@@ -766,149 +787,156 @@ function finalizeSale() {
   renderProducts();
   clearCart();
   renderHistory();
+
+  if (confirm("¿Generar ticket?")) {
+    generateTicket(currentSale); // 🔥 PASAMOS LA VENTA REAL
+  }
+
+  currentSale = null;
 }
 
-function generateTicket() {
-  if (!currentSale) {
+function generateTicket(sale) {
+  if (!sale) {
     alert("No hay venta disponible");
     return;
   }
 
-  const sale = currentSale;
+  const container = document.getElementById("ticket-container");
+
+  if (!container) {
+    alert("No existe #ticket-container en el HTML");
+    return;
+  }
 
   let rows = "";
+  const grouped = {};
 
   sale.items.forEach(item => {
-    const totalItem = item.price * item.qty;
+    if (!grouped[item.name]) {
+      grouped[item.name] = {
+        qty: 0,
+        price: item.price
+      };
+    }
+    grouped[item.name].qty++;
+  });
+
+  Object.entries(grouped).forEach(([name, info]) => {
+    const totalItem = info.qty * info.price;
 
     rows += `
       <tr>
-        <td>${item.qty} × ${item.name}</td>
-        <td>$ ${item.price}</td>
+        <td>${info.qty} × ${name}</td>
+        <td>$ ${info.price}</td>
         <td style="text-align: right;">$ ${totalItem}</td>
       </tr>
     `;
   });
 
-  const html = `
-  <html>
-  <head>
-    <title>Ticket</title>
-    <style>
-      body {
-        font-family: monospace;
-        padding: 20px;
-        max-width: 300px;
-        margin: auto;
-      }
+  const ticketHTML = `
+    <div id="ticket" style="
+      font-family: monospace;
+      padding: 15px;
+      width: 280px;
+      background: white;
+      color: black;
+    ">
+      <div style="text-align:center;">
+        <img src="data:image/jpeg;base64,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" style="max-width:120px;"><br>
+        <strong>POSTRE MÍO</strong><br>
+        ${sale.date}
+      </div>
 
-      .center { text-align: center; }
+      <hr style="border:none;border-top:1px dashed black;margin:10px 0;"/>
 
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-      }
-
-      td {
-        font-size: 12px;
-        padding: 4px 0;
-      }
-
-      .total {
-        margin-top: 10px;
-        font-weight: bold;
-        text-align: right;
-      }
-
-      .footer {
-        margin-top: 15px;
-        text-align: center;
-        font-size: 12px;
-        width: 100%;
-      }
-
-      hr {
-          border: none;
-          border-top: 1px dashed black;
-          margin: 10px 0;
-        }
-    </style>
-  </head>
-  <body>
-
-    <div class="center">
-      <img src="ticket_logo_small.jpg" style="max-width:120px;"><br>
-      <strong>POSTRE MÍO</strong><br>
-      ${sale.date}
-    </div>
-
-    <hr/>
-
-    <table>
-      <tr>
-        <td style="width: 50%;">DESCRIPCIÓN</td>
-        <td>PRECIO</td>
-        <td style="text-align: right;">TOTAL</td>
-      </tr>
-      ${rows}
-    </table>
-
-  <hr/>
-
-    <div class="total">
-      TOTAL     $ ${sale.total}
-    </div>
-
-    <hr style="height: 1px; width: 15%; margin-left:auto;">
-
-    <div>
-      <table>
+      <table style="width:100%;font-size:12px;">
         <tr>
-          <td style="width: 35%;"></td>
-          <td style="height: 8px;">Pagos:</td>
+          <td>DESCRIPCIÓN</td>
+          <td>PRECIO</td>
+          <td style="text-align:right;">TOTAL</td>
+        </tr>
+        ${rows}
+      </table>
+
+      <hr style="border:none;border-top:1px dashed black;margin:10px 0;"/>
+
+      <table style="width:100%;font-weight:bold;">
+        <tr>
           <td></td>
-        </tr>
-        <tr>
-          <td style="width: 35%; height: 8px;"></td>
-          <td style="width: 35%; height: 8px;">${sale.method === "cash" ? "EFECTIVO" : "TRANSFERENCIA"}</td>
-          <td style="width: 30%; height: 8px; text-align: right;">$ ${sale.amount}</td>
-        </tr>
-        <tr>
-          <td style="width: 35%; height: 8px;"></td>
-          <td style="width: 35%; height: 8px;">CAMBIO</td>
-          <td style="width: 30%; height: 8px; text-align: right;">$ ${sale.change}</td>
+          <td>Total</td>
+          <td style="text-align:right;">$ ${sale.total}</td>
         </tr>
       </table>
+
+      <hr style="border:none;border-top:1px dashed black;margin:10px 0;width:20%;margin-left:auto;"/>
+
+      <table style="width:100%;">
+        <tr>
+          <td></td>
+          <td>Pagos:</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td></td>
+          <td>${sale.method === "cash" ? "EFECTIVO" : "TRANSFERENCIA"}</td>
+          <td style="text-align:right;">$ ${sale.amount}.00</td>
+        </tr>
+
+        <tr>
+          <td></td>
+          <td>CAMBIO</td>
+          <td style="text-align:right;">$ ${sale.change}.00</td>
+        </tr>
+      </table>
+
+      <br><br>
+
+      <div style="text-align:center;font-size:12px;">
+        Gracias por su compra ❤️<br><br>
+        TELÉFONO 229 157 4962<br>
+        INSTAGRAM @postremio.mx
+      </div>
     </div>
-
-    <br><br><br
-
-    <div class="footer">
-      Gracias por su compra ❤️<br><br>
-      TELÉFONO 229 157 4962<br>
-      INSTAGRAM @postremio.mx
-    </div>
-
-  </body>
-  </html>
   `;
 
-  const win = window.open("", "_blank");
-  win.document.write(html);
-  win.document.close();
-}
+  // ✅ Insertar correctamente
+  container.innerHTML = ticketHTML;
 
-function printLastSale(total) {
-  const history = JSON.parse(localStorage.getItem("history")) || [];
+  // ⏳ Esperar a que el DOM lo procese
+  setTimeout(() => {
+    const ticketElement = document.getElementById("ticket");
 
-  const sale = {
-    date: new Date().toLocaleString(),
-    items: [...cart],
-    total: total
-  };
+    if (!ticketElement) {
+      alert("No se generó el ticket");
+      return;
+    }
 
-  generateTicket(sale);
+    html2canvas(ticketElement, {
+      scale: 2,
+      useCORS: true
+    }).then(canvas => {
+
+      const imgData = canvas.toDataURL("image/png");
+
+      const link = document.createElement("a");
+      link.href = imgData;
+      link.download = `ticket_${Date.now()}.png`;
+      link.click();
+
+      const phone = prompt("Número de teléfono");
+
+      if (!phone) return;
+
+      const message = encodeURIComponent("Gracias por comprar en POSTRE MÍO ❤️");
+
+      const url = "https://wa.me/" + phone + "?text=" + message;
+
+      window.open(url, "_blank");
+
+    });
+
+  }, 100);
 }
 
 function toggleMenu() {
@@ -1097,21 +1125,103 @@ function deleteSale(index) {
   renderHistory();
 }
 
-function groupItems(items) {
-  const grouped = {};
+function generateCut() {
+  const today = new Date().toLocaleDateString().split("T")[0];
 
-  items.forEach(item => {
-    if (!grouped[item.name]) {
-      grouped[item.name] = {
-        quantity: 0,
-        price: item.price
-      };
-    }
-    grouped[item.name].quantity++;
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+
+  const todaySales = history.filter(s => s.date.startsWith(today));
+
+  const total = todaySales.reduce((sum, s) => sum + s.total, 0);
+  const count = todaySales.length;
+
+  let breakdown = {};
+
+  todaySales.forEach(sale => {
+    sale.items.forEach(item => {
+      breakdown[item] = (breakdown[item] || 0) + 1;
+    });
   });
 
-  return Object.entries(grouped);
+  console.log("Corte:", { total, count, breakdown });
+
+  exportToExcel();
+
+  clearSales();
 }
+
+function clearSales() {
+  if (confirm("¿Cerrar caja y borrar ventas?")) {
+    history = [];
+    localStorage.removeItem("history");
+
+    alert(
+      "Corte del día\n\n" +
+      "ventas: " + count + "\n" +
+      "Total: $" + total
+    );
+
+    renderHistory();
+  }
+}
+
+function exportToExcel() {
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+
+  let products = new Set();
+
+  history.forEach(sale => {
+    sale.items.forEach(item => {
+      products.add(item.name);
+    });
+  });
+
+  products = Array.from(products);
+
+  let csv = "Fecha,Hora,";
+
+  products.forEach(p => {
+    csv += p + ",";
+  });
+
+  csv += "Total\n";
+
+  history.forEach(sale => {
+
+    const saleDate = sale.date.split(",")[0]
+    const saleTime = sale.date.split(",")[1]
+
+    let row = `${saleDate},${saleTime},`;
+
+    products.forEach(p => {
+      
+      let cantidad = 0;
+
+      sale.items.forEach(item => {
+        if ((item.name || item) === p) {
+          cantidad++;
+        }
+      });
+
+      row += cantidad + ",";
+    })
+
+    row += sale.total + "\n";
+
+    csv += row;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `postre_mio_corte_${new Date().toLocaleDateString()}.csv`
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
+
 
 function showToast(msg) {
   const toast = document.createElement("div");
