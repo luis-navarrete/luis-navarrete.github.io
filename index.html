@@ -206,6 +206,7 @@ button {
   border: none;
   font-size: 16px;
   border-radius: 10px;
+  cursor: pointer;
 }
 
 .pay {
@@ -413,7 +414,7 @@ button {
 
 <div class="header">
   <button class="menu-btn" onclick="toggleMenu()">☰</button>
-  <img src="logo.jpeg">
+  <img src="logo.jpeg" onclick="showPage('pos')" style="cursor:pointer;">
 </div>
 
 
@@ -455,8 +456,8 @@ button {
   <div class="page-content">
     <h2>Historial</h2>
     <div id="historyList"></div>
-    <div style="text-align: center;">
-      <button id="cutBtn" onclick="generateCut() ">Corte</button>
+    <div id="cutBtn" style="display:none; text-align: center;">
+      <button onclick="generateCut() ">Corte de caja</button>
     </div>
   </div>
 </div>
@@ -510,13 +511,13 @@ const menu = [
   {
     category: "🍪 Galletas",
     items: [
-      { name: "M&Ms", price: 45.00, img: "mms.jpg" },
+      { name: "M&Ms", price: 40.00, img: "mms.jpg" },
       { name: "Lotus", price: 40.00, img: "lotus.jpg" },
       { name: "Kinder Bueno", price: 40.00, img: "kinder.jpg" },
       { name: "Red Velvet", price: 40.00, img: "redvelvet.jpg" },
       { name: "Oreo", price: 40.00, img: "oreo.jpg" },
       { name: "Lucky Charms", price: 40.00, img: "lucky.jpg" },
-      { name: "Conejito Turín", price: 45.00, img: "turin.jpg" }
+      { name: "Conejito Turín", price: 40.00, img: "turin.jpg" }
     ]
   },
   {
@@ -694,7 +695,7 @@ function handleCash(total) {
   const btn = document.getElementById("continueBtn");
 
   // 👉 abre teclado automáticamente
-  setTimeout(() => input.focus(), 100);
+  setTimeout(() => input.focus(), 50);
 
   input.addEventListener("input", () => {
     const value = parseFloat(input.value);
@@ -976,6 +977,7 @@ function showPage(page) {
 
   if (page === "history") {
     document.getElementById("historyPage").style.display = "block";
+    updateCutBtn();
     renderHistory();
   }
 
@@ -1038,7 +1040,7 @@ function renderHistory() {
   if (data.length === 0) {
     container.innerHTML = "<p>No hay ventas aún.</p>";
     return;
-  }
+  }  
 
   data.slice().reverse().forEach((sale) => {
     const realIndex = data.indexOf(sale);
@@ -1099,6 +1101,17 @@ function renderHistory() {
   });
 }
 
+function updateCutBtn() {
+  const history = JSON.parse(localStorage.getItem("history")) || [];
+  const container = document.getElementById("cutBtn");
+
+  if (history.length >   0) {
+    container.style.display = "block";
+  } else {
+    container.style.display = "none";
+  }
+}
+
 function deleteSale(index) {
   const data = JSON.parse(localStorage.getItem("history")) || [];
 
@@ -1155,11 +1168,13 @@ function clearSales() {
     history = [];
     localStorage.removeItem("history");
 
-    alert(
-      "Corte del día\n\n" +
-      "ventas: " + count + "\n" +
-      "Total: $" + total
-    );
+    setTimeout(() => {
+      alert(
+        "Corte del día\n\n" +
+        "ventas: " + count + "\n" +
+        "Total: $" + total
+      );
+    });
 
     renderHistory();
   }
